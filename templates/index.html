@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast Analysis Using Statistics and Probability 🌦️</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- KaTeX Math Rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Background Animated Elements -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+
+    <div class="app-container">
+        <!-- HEADER & CONTROL BAR -->
+        <header class="app-header">
+            <div class="header-main">
+                <div class="brand-box">
+                    <div class="brand-icon">
+                        <i class="fa-solid fa-cloud-sun-rain"></i>
+                    </div>
+                    <div>
+                        <h1 class="brand-title">Weather Forecast Analysis</h1>
+                        <p class="brand-subtitle">Powered by Statistics, Probability & Time-Series Linear Regression</p>
+                    </div>
+                </div>
+
+                <div class="api-badge" id="apiBadge">
+                    <span class="pulse-dot"></span>
+                    <span id="apiStatusText">Connecting to Open-Meteo API...</span>
+                </div>
+            </div>
+
+            <!-- Controls Panel -->
+            <div class="control-panel">
+                <div class="control-group search-group">
+                    <label><i class="fa-solid fa-location-dot"></i> Select City</label>
+                    <div class="search-input-wrapper">
+                        <input type="text" id="cityInput" placeholder="Type city (e.g. Hyderabad, London)..." value="Hyderabad">
+                        <button id="searchBtn" class="icon-btn" title="Search City"><i class="fa-solid fa-magnifying-glass"></i></button>
+                    </div>
+                    <div class="city-suggestions" id="citySuggestions"></div>
+                </div>
+
+                <div class="quick-cities">
+                    <span class="quick-label">Quick Picks:</span>
+                    <button class="quick-chip active" data-city="Hyderabad" data-lat="17.3850" data-lon="78.4867">Hyderabad</button>
+                    <button class="quick-chip" data-city="Mumbai" data-lat="19.0760" data-lon="72.8777">Mumbai</button>
+                    <button class="quick-chip" data-city="Delhi" data-lat="28.6139" data-lon="77.2090">Delhi</button>
+                    <button class="quick-chip" data-city="Bengaluru" data-lat="12.9716" data-lon="77.5946">Bengaluru</button>
+                    <button class="quick-chip" data-city="Chennai" data-lat="13.0827" data-lon="80.2707">Chennai</button>
+                    <button class="quick-chip" data-city="Kolkata" data-lat="22.5726" data-lon="88.3639">Kolkata</button>
+                    <button class="quick-chip" data-city="Pune" data-lat="18.5204" data-lon="73.8567">Pune</button>
+                    <button class="quick-chip" data-city="Jaipur" data-lat="26.9124" data-lon="75.7873">Jaipur</button>
+                    <button class="quick-chip" data-city="Visakhapatnam" data-lat="17.6868" data-lon="83.2185">Visakhapatnam</button>
+                    <button class="quick-chip" data-city="London" data-lat="51.5074" data-lon="-0.1278">London</button>
+                </div>
+
+                <div class="control-group range-group">
+                    <label><i class="fa-solid fa-calendar-days"></i> Historical Period (Years)</label>
+                    <div class="range-selector">
+                        <select id="yearRangeSelect">
+                            <option value="1">Last 1 Year</option>
+                            <option value="3">Last 3 Years</option>
+                            <option value="5" selected>Last 5 Years</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="analyzeBtn" class="btn-primary">
+                    <i class="fa-solid fa-chart-line"></i> Analyze & Predict
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI SUMMARY CARDS -->
+        <section class="kpi-grid">
+            <div class="kpi-card cyan">
+                <div class="kpi-header">
+                    <span>Mean Temperature ($\mu$)</span>
+                    <i class="fa-solid fa-temperature-half"></i>
+                </div>
+                <div class="kpi-value" id="kpiMeanTemp">-- °C</div>
+                <div class="kpi-subtext" id="kpiMeanTempSub">Average central benchmark</div>
+            </div>
+
+            <div class="kpi-card purple">
+                <div class="kpi-header">
+                    <span>Temp Volatility ($\sigma$)</span>
+                    <i class="fa-solid fa-chart-area"></i>
+                </div>
+                <div class="kpi-value" id="kpiStdDev">-- °C</div>
+                <div class="kpi-subtext" id="kpiStdDevSub">Standard deviation dispersion</div>
+            </div>
+
+            <div class="kpi-card blue">
+                <div class="kpi-header">
+                    <span>Rain Probability $P(\text{Rain})$</span>
+                    <i class="fa-solid fa-cloud-showers-heavy"></i>
+                </div>
+                <div class="kpi-value" id="kpiRainProb">-- %</div>
+                <div class="kpi-subtext" id="kpiRainProbSub">Empirical rainy days ratio</div>
+            </div>
+
+            <div class="kpi-card emerald">
+                <div class="kpi-header">
+                    <span>Annual Rainfall Sum</span>
+                    <i class="fa-solid fa-droplet"></i>
+                </div>
+                <div class="kpi-value" id="kpiRainSum">-- mm</div>
+                <div class="kpi-subtext" id="kpiRainSumSub">Avg total annual precipitation</div>
+            </div>
+
+            <div class="kpi-card amber">
+                <div class="kpi-header">
+                    <span>Future Forecast Temp</span>
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div class="kpi-value" id="kpiForecast2026">-- °C</div>
+                <div class="kpi-subtext" id="kpiForecastSub">Linear regression trend ($y=mx+c$)</div>
+            </div>
+        </section>
+
+        <!-- TAB NAVIGATION -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="tab-overview"><i class="fa-solid fa-gauge-high"></i> Overview</button>
+            <button class="tab-btn" data-tab="tab-stats"><i class="fa-solid fa-calculator"></i> Descriptive Stats</button>
+            <button class="tab-btn" data-tab="tab-rainfall"><i class="fa-solid fa-cloud-rain"></i> Rainfall Probability</button>
+            <button class="tab-btn" data-tab="tab-normal"><i class="fa-solid fa-bell"></i> Normal Distribution</button>
+            <button class="tab-btn" data-tab="tab-timeseries"><i class="fa-solid fa-timeline"></i> Time Series & Trends</button>
+            <button class="tab-btn" data-tab="tab-prediction"><i class="fa-solid fa-bullseye"></i> Future Prediction</button>
+            <button class="tab-btn" data-tab="tab-viva"><i class="fa-solid fa-graduation-cap"></i> Viva & Theory Guide</button>
+            <button class="tab-btn" data-tab="tab-raw"><i class="fa-solid fa-table"></i> Raw Data</button>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="content-body">
+            <!-- TAB 1: OVERVIEW -->
+            <div class="tab-pane active" id="tab-overview">
+                <div class="dashboard-grid">
+                    <div class="glass-card span-2">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-temperature-arrow-up"></i> Historical Temperature & Moving Average Trend</h3>
+                            <span class="badge" id="overviewCityBadge">Hyderabad (2021-2025)</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="overviewTrendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-pie-chart"></i> Weather Days Distribution</h3>
+                        </div>
+                        <div class="chart-wrapper doughnut-wrapper">
+                            <canvas id="overviewDoughnutChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card span-3">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-calendar-check"></i> Yearly Comparison Summary</h3>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table" id="yearlySummaryTable">
+                                <thead>
+                                    <tr>
+                                        <th>Year</th>
+                                        <th>Average Temp (°C)</th>
+                                        <th>Max Temp (°C)</th>
+                                        <th>Min Temp (°C)</th>
+                                        <th>Total Rainfall (mm)</th>
+                                        <th>Rainy Days</th>
+                                        <th>Rain Probability</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Dynamic Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: DESCRIPTIVE STATS -->
+            <div class="tab-pane" id="tab-stats">
+                <div class="section-title-box">
+                    <h2><i class="fa-solid fa-calculator"></i> Statistical Analysis of Weather Data</h2>
+                    <p>Understanding central tendency (Mean, Median, Mode) and dispersion (Variance, Standard Deviation).</p>
+                </div>
+
+                <div class="stats-cards-grid">
+                    <!-- MEAN CARD -->
+                    <div class="stat-detail-card">
+                        <div class="stat-badge cyan">Central Tendency</div>
+                        <h3 class="stat-name">Mean ($\mu$)</h3>
+                        <div class="stat-math-formula">$$\mu = \frac{1}{N}\sum_{i=1}^N x_i$$</div>
+                        <div class="stat-huge-val" id="statMeanVal">31.0 °C</div>
+                        <p class="stat-desc">The arithmetic average of all recorded temperatures. Serves as the primary baseline for climate evaluation.</p>
+                    </div>
+
+                    <!-- MEDIAN CARD -->
+                    <div class="stat-detail-card">
+                        <div class="stat-badge purple">Robust Middle</div>
+                        <h3 class="stat-name">Median</h3>
+                        <div class="stat-math-formula">$$\text{Median} = \text{Middle Value}$$</div>
+                        <div class="stat-huge-val" id="statMedianVal">30.8 °C</div>
+                        <p class="stat-desc">The exact center value after sorting data. Immune to extreme heatwaves or unexpected cold drops.</p>
+                    </div>
+
+                    <!-- MODE CARD -->
+                    <div class="stat-detail-card">
+                        <div class="stat-badge blue">Most Frequent</div>
+                        <h3 class="stat-name">Mode</h3>
+                        <div class="stat-math-formula">$$\text{Mode} = \arg\max f(x)$$</div>
+                        <div class="stat-huge-val" id="statModeVal">30.0 °C</div>
+                        <p class="stat-desc">The single temperature value occurring with the highest frequency in the historical dataset.</p>
+                    </div>
+
+                    <!-- VARIANCE CARD -->
+                    <div class="stat-detail-card">
+                        <div class="stat-badge amber">Spread Measure</div>
+                        <h3 class="stat-name">Variance ($\sigma^2$)</h3>
+                        <div class="stat-math-formula">$$\sigma^2 = \frac{1}{N}\sum (x_i - \mu)^2$$</div>
+                        <div class="stat-huge-val" id="statVarianceVal">4.25</div>
+                        <p class="stat-desc">Measures how spread out temperature values are around the average. High variance = erratic weather.</p>
+                    </div>
+
+                    <!-- STANDARD DEVIATION CARD -->
+                    <div class="stat-detail-card">
+                        <div class="stat-badge emerald">Volatility Index</div>
+                        <h3 class="stat-name">Standard Deviation ($\sigma$)</h3>
+                        <div class="stat-math-formula">$$\sigma = \sqrt{\text{Variance}}$$</div>
+                        <div class="stat-huge-val" id="statStdVal">2.06 °C</div>
+                        <p class="stat-desc">Quantifies typical deviation from the mean temperature. Lower values indicate high stability.</p>
+                    </div>
+
+                    <!-- RANGE & IQR CARD -->
+                    <div class="stat-detail-card">
+                        <div class="stat-badge rose">Extremes</div>
+                        <h3 class="stat-name">Range & IQR</h3>
+                        <div class="stat-math-formula">$$\text{IQR} = Q_3 - Q_1$$</div>
+                        <div class="stat-huge-val" id="statRangeVal">15.2 °C</div>
+                        <p class="stat-desc">Difference between max and min temperatures. Interquartile range covers middle 50% data.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card mt-6">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-chart-column"></i> Multi-Variable Statistical Breakdown</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="fullStatsTable">
+                            <thead>
+                                <tr>
+                                    <th>Variable</th>
+                                    <th>Sample Count ($N$)</th>
+                                    <th>Mean ($\mu$)</th>
+                                    <th>Median</th>
+                                    <th>Mode</th>
+                                    <th>Variance ($\sigma^2$)</th>
+                                    <th>Std Dev ($\sigma$)</th>
+                                    <th>Min</th>
+                                    <th>Max</th>
+                                    <th>IQR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Step-by-step calculation breakdown -->
+                <div class="glass-card mt-6">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-list-ol"></i> Step-by-Step Calculation Working</h3>
+                    </div>
+                    <div id="calcStepsBox" class="calc-steps-container">
+                        <!-- Filled dynamically by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: RAINFALL PROBABILITY -->
+            <div class="tab-pane" id="tab-rainfall">
+                <div class="dashboard-grid">
+                    <div class="glass-card span-2">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-cloud-showers-heavy"></i> Monthly Precipitation & Rain Probability $P(\text{Rain})$</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="monthlyRainChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-cloud-rain"></i> Rainfall Intensity Classification</h3>
+                        </div>
+                        <div class="chart-wrapper doughnut-wrapper">
+                            <canvas id="rainIntensityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card span-3">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-calendar-days"></i> Monthly Empirical Rainfall Probability Breakdown</h3>
+                        </div>
+                        <div class="monthly-prob-grid" id="monthlyProbGrid">
+                            <!-- Dynamic Cards -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: NORMAL DISTRIBUTION -->
+            <div class="tab-pane" id="tab-normal">
+                <div class="dashboard-grid">
+                    <div class="glass-card span-2">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-bell"></i> Gaussian Normal Distribution Curve $N(\mu, \sigma^2)$</h3>
+                            <span class="badge purple">Empirical Rule 68-95-99.7%</span>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="normalDistChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-shield-cat"></i> Confidence Intervals & Anomalies</h3>
+                        </div>
+                        <div class="sigma-breakdown">
+                            <div class="sigma-box green">
+                                <h4><i class="fa-solid fa-check"></i> $\pm 1\sigma$ Zone (68.27%)</h4>
+                                <p id="sigma1Text">28.9°C to 33.1°C</p>
+                                <span>Normal typical temperature range</span>
+                            </div>
+
+                            <div class="sigma-box yellow">
+                                <h4><i class="fa-solid fa-triangle-exclamation"></i> $\pm 2\sigma$ Zone (95.45%)</h4>
+                                <p id="sigma2Text">26.8°C to 35.2°C</p>
+                                <span>Unusual warm or cool days</span>
+                            </div>
+
+                            <div class="sigma-box red">
+                                <h4><i class="fa-solid fa-fire-flame-curved"></i> Extreme Anomalies ($> 2\sigma$)</h4>
+                                <div class="anomaly-counter" id="anomalyCount">0 Days</div>
+                                <span>Heatwave or sudden freeze events</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: TIME SERIES & TRENDS -->
+            <div class="tab-pane" id="tab-timeseries">
+                <div class="dashboard-grid">
+                    <div class="glass-card span-3">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-chart-line"></i> Time-Series Linear Regression & Moving Averages</h3>
+                            <span class="badge blue" id="regressionEquation">y = 0.0004x + 29.5 ($R^2 = 0.65$)</span>
+                        </div>
+                        <div class="chart-wrapper large-chart">
+                            <canvas id="timeSeriesChart"></canvas>
+                        </div>
+                        <!-- Regression step-by-step -->
+                        <div id="regressionStepBox" class="calc-steps-container" style="margin-top:16px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: FUTURE PREDICTION -->
+            <div class="tab-pane" id="tab-prediction">
+                <div class="prediction-hero-box">
+                    <div class="prediction-info">
+                        <h2><i class="fa-solid fa-wand-magic-sparkles"></i> Statistical Weather Forecast Engine</h2>
+                        <p>Forecast future annual temperatures and rainfall using linear regression $y = mx + c$ and empirical monthly probability distributions.</p>
+                    </div>
+
+                    <div class="prediction-controls">
+                        <label>Select Target Future Year:</label>
+                        <div class="year-slider-box">
+                            <input type="range" id="futureYearSlider" min="2026" max="2030" value="2026" step="1">
+                            <span class="slider-val" id="sliderValDisplay">2026</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="prediction-results-grid">
+                    <div class="pred-card cyan">
+                        <i class="fa-solid fa-temperature-high pred-icon"></i>
+                        <h4>Predicted Avg Temperature</h4>
+                        <div class="pred-value" id="predTempDisplay">31.2 °C</div>
+                        <p id="predTempDiff">+0.7°C increase from 5-year mean</p>
+                    </div>
+
+                    <div class="pred-card blue">
+                        <i class="fa-solid fa-cloud-showers-water pred-icon"></i>
+                        <h4>Predicted Annual Rainfall</h4>
+                        <div class="pred-value" id="predPrecipDisplay">980 mm</div>
+                        <p>Based on 5-year precipitation mean</p>
+                    </div>
+
+                    <div class="pred-card purple">
+                        <i class="fa-solid fa-umbrella pred-icon"></i>
+                        <h4>Expected Rainy Days</h4>
+                        <div class="pred-value" id="predRainDaysDisplay">115 Days</div>
+                        <p id="predRainProbDisplay">31.5% rain chance on any given day</p>
+                    </div>
+
+                    <div class="pred-card red">
+                        <i class="fa-solid fa-fire pred-icon"></i>
+                        <h4>Heatwave Risk Index</h4>
+                        <div class="pred-value" id="predHeatwaveDisplay"> Moderate (24%)</div>
+                        <p>Likelihood of temp exceeding $\mu + 2\sigma$</p>
+                    </div>
+                </div>
+
+                <div class="glass-card mt-6">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-chart-column"></i> Multi-Year Future Projection (2026 - 2030)</h3>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="futurePredictionTable">
+                            <thead>
+                                <tr>
+                                    <th>Target Year</th>
+                                    <th>Predicted Avg Temp (°C)</th>
+                                    <th>Predicted Rainfall (mm)</th>
+                                    <th>Expected Rainy Days</th>
+                                    <th>Daily Rain Probability</th>
+                                    <th>Heatwave Probability</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: VIVA & THEORY GUIDE -->
+            <div class="tab-pane" id="tab-viva">
+                <div class="viva-header-box">
+                    <h2><i class="fa-solid fa-graduation-cap"></i> Project Viva & Statistical Theory Guide</h2>
+                    <p>Complete A-to-Z reference guide with formula definitions and viva questions for external examination.</p>
+                </div>
+
+                <div class="viva-cards-container" id="vivaCardsContainer">
+                    <!-- Dynamic Viva Cards -->
+                </div>
+
+                <div class="glass-card mt-6">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-question-circle"></i> Commonly Asked Viva Questions & Answers</h3>
+                    </div>
+                    <div class="viva-faq-list" id="vivaFaqList">
+                        <!-- Dynamic FAQ -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 8: RAW DATA -->
+            <div class="tab-pane" id="tab-raw">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-table"></i> Historical Weather Records <span id="rawDataCountLabel" style="font-size:13px; color:#64748b; font-weight:400;"></span></h3>
+                        <button id="exportCsvBtn" class="btn-secondary"><i class="fa-solid fa-download"></i> Export CSV</button>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="rawDataTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Day</th>
+                                    <th>Mean Temp (°C)</th>
+                                    <th>Max Temp (°C)</th>
+                                    <th>Min Temp (°C)</th>
+                                    <th>Precipitation (mm)</th>
+                                    <th>Humidity (%)</th>
+                                    <th>Wind Speed (km/h)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Application JS -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
